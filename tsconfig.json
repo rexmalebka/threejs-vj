@@ -1,0 +1,26 @@
+{
+	"compilerOptions": {
+		"target": "ES5",
+		"strict": true,
+		"allowSyntheticDefaultImports": true,
+		"noImplicitAny": true,
+		"experimentalDecorators": true,
+		"sourceMap": true,
+		"baseUrl": ".",
+		"paths": {
+			"@/*": [
+				"src/*"
+			]
+		}
+	},
+	"include": [
+		"src/**/*.ts",
+		"src/**/*.tsx",
+		"src/**/*.vue",
+		"tests/**/*.ts",
+		"tests/**/*.tsx"
+	],
+	"exclude": [
+		"node_modules"
+	]
+}

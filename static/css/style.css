@@ -1,0 +1,18 @@
+body{
+	margin: 0px;
+	padding: 0px;
+	font-family: 'Courier New', monospace;
+	font-size: 1.2em;
+	overflow: hidden;
+}
+#select_menu{
+	position: absolute;
+	top: 5%;
+	right:5%;
+}
+
+.menu{
+	position:absolute;
+	top:25%;
+	right:5%;
+}

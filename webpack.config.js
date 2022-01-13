@@ -1,0 +1,33 @@
+const path = require('path')
+const { VueLoaderPlugin } = require('vue-loader')
+const webpack = require('webpack')
+
+module.exports = {
+	entry: {
+		app: path.resolve(__dirname, 'src/index.ts')
+	},
+	output: {
+		path: path.resolve(__dirname, 'static'),
+		filename: 'js/[name].js',
+		publicPath: '/'
+	},
+	resolve: {
+		extensions: ['.ts', '.js']
+	},
+	plugins:[
+		new VueLoaderPlugin()
+	],
+	module: {
+		rules: [
+			{
+				test: /\.vue$/,
+				use: 'vue-loader',
+			},
+			{
+				test: /\.ts$/,
+				loader: 'ts-loader',
+				options: { appendTsSuffixTo: [/\.vue$/] }
+			},
+		]
+	}
+}

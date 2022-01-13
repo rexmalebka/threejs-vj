@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<link rel="stylesheet" href="css/style.css">
+	<title></title>
+</head>
+<body>
+	<div>
+
+	<div id="app" tabindex="0"
+		>
+		<div>
+			<div 
+				v-for="id in Object.keys(this.sources)">
+				<source_component 
+			@rename_source = "rename_source"
+					:id="id" 
+					v-bind:name = "this.sources[id]" 
+					v-bind:active="this.active_source == id" 
+					:pane= "pane"
+					v-bind:videos = "videos"
+					:scene="scene"></source_component>
+			</div>
+		</div>
+	</div>
+
+	</div>
+	<script  src="js/app.js"></script>
+</body>
+</html>
