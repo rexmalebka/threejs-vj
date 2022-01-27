@@ -25,7 +25,7 @@
 	"dependencies": {
 		"@vue/compat": "^3.1.0",
 		"ouioui": "^0.0.23",
-		"three": "^0.136.0",
+		"three": "^0.137.0",
 		"tweakpane": "^3.0.7",
 		"vue": "^3.1.0"
 	}
