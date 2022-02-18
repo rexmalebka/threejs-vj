@@ -4,7 +4,8 @@ const webpack = require('webpack')
 
 module.exports = {
 	entry: {
-		app: path.resolve(__dirname, 'src/index.ts')
+		app: path.resolve(__dirname, 'src/index.ts'),
+		app2: path.resolve(__dirname, 'src/index2.ts')
 	},
 	output: {
 		path: path.resolve(__dirname, 'static'),
@@ -27,7 +28,14 @@ module.exports = {
 				test: /\.ts$/,
 				loader: 'ts-loader',
 				options: { appendTsSuffixTo: [/\.vue$/] }
-			},
+			},{
+				test: /\.css$/,
+				use: [
+					'style-loader',
+					{ loader: 'css-loader', options: { importLoaders: 1 } },
+					'postcss-loader'
+				]
+			}
 		]
 	}
 }

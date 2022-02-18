@@ -65,6 +65,7 @@ export default defineComponent({
 			deep:true
 		},
 		'mesh.userData.texture': function(id:string){
+			console.debug("id texture",id)
 			this.mesh.material.map = this.$props.videos[id].texture
 			this.mesh.material.displacementMap = this.$props.videos[id].texture
 
