@@ -3,6 +3,7 @@
 <head>
 	<meta charset="UTF-8">
 	<link rel="stylesheet" href="css/style.css">
+	<link rel="icon" href="favicon.ico" type="image/x-icon" />
 	<title></title>
 </head>
 <body>
@@ -10,18 +11,37 @@
 
 	<div id="app" tabindex="0"
 		>
-		<div>
+		<div v-if="!is_live">
 			<div 
-				v-for="id in Object.keys(this.sources)">
-				<source_component 
-			@rename_source = "rename_source"
-					:id="id" 
-					v-bind:name = "this.sources[id]" 
-					v-bind:active="this.active_source == id" 
-					:pane= "pane"
-					v-bind:videos = "videos"
-					:scene="scene"></source_component>
+		      		v-for="id in Object.keys(this.textures)" :key="id">
+				<texture_component
+					@log='log'
+					@add_texture="add_texture"
+					@rename_texture="rename_texture"
+					:id="id"
+					:name = "this.textures[id].name"
+					v-bind:active_texture = "active_texture"
+					v-bind:pane = "pane.children[0].pages[2].children[4]"
+					v-bind:scene = "scene">
+				</texture_component>
 			</div>
+			<div 
+		      		v-for="id in Object.keys(this.sources)" :key="id">
+				<source_component
+					@rename_source="rename_source"
+					@log='log'
+
+					:id="id"
+					:name = "this.sources[id]"
+					v-bind:textures = "textures"
+					v-bind:active_source = "active_source"
+					v-bind:pane = "pane.children[0].pages[1].children[4]"
+					v-bind:scene = "scene">
+				</source_component>
+			</div>
+		</div>
+		<div v-else>
+			<video id="live" src="" autoplay muted></video>
 		</div>
 	</div>
 

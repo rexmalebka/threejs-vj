@@ -5,14 +5,34 @@ body{
 	font-size: 1.2em;
 	overflow: hidden;
 }
+
+#live_url{
+	color: white;
+	margin: 1em;
+}
+
+#live{
+
+}
+
 #select_menu{
 	position: absolute;
 	top: 5%;
 	right:5%;
 }
 
-.menu{
-	position:absolute;
-	top:25%;
-	right:5%;
+.hand{
+	cursor:pointer;
+}
+
+#menu{
+	top:10px;
+	right: 10px;
+	position:fixed;
+	width: 25%;
+}
+
+video{
+	position: fixed;
+	z-index: -1;
 }
