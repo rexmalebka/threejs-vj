@@ -1,4 +1,4 @@
- vj system
+# threejs vj system
 
 threejs system that allows to interact and create visuals from 3D meshes, using textures and geometry / material properties in a 3D spacce
 ![image](https://user-images.githubusercontent.com/17996715/154858972-c5a08bfd-0861-40d7-a9d4-2e2c8f942d65.png)
@@ -73,6 +73,11 @@ after selecting midi device,  you can use channels object to manipulate source/t
 | ch1.on       | if noteOn or noteOff                                                       |
 | ch1.note     | note value sent                                                            |
 
+live option
+---
+
+You can use the live option to stream using p2p webrtc, anyone with the link could access your live sketch
+![image](https://user-images.githubusercontent.com/17996715/154860235-3acc817b-0501-42ea-bc24-f398c874ecdd.png)
 
 
 Installation:
