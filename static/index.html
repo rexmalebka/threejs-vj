@@ -11,8 +11,18 @@
 
 	<div id="app" tabindex="0"
 		>
+		<div
+			@keydown.shift.s="export_file"
+			@drop="import_file" @dragenter.prevent @dragover.prevent
+
+			@mousemove = "update_move_m"
+			@mousedown = "update_down_m"
+			@mouseup = "update_up_m"
+			tabindex="0"
+		>
 		<div v-if="!is_live">
 			<div 
+		     		tabindex="0"
 		      		v-for="id in Object.keys(this.textures)" :key="id">
 				<texture_component
 					@log='log'
@@ -30,18 +40,22 @@
 				<source_component
 					@rename_source="rename_source"
 					@log='log'
+					@socket="send_socket"
 
 					:id="id"
 					:name = "this.sources[id]"
 					v-bind:textures = "textures"
 					v-bind:active_source = "active_source"
-					v-bind:pane = "pane.children[0].pages[1].children[4]"
+					v-bind:is_model = "id.split('-')[1] == 'model'"
+					v-bind:models = "models"
+					v-bind:pane = "pane.children[0].pages[1].children[5]"
 					v-bind:scene = "scene">
 				</source_component>
 			</div>
 		</div>
 		<div v-else>
 			<video id="live" src="" autoplay muted></video>
+		</div>
 		</div>
 	</div>
 

@@ -11,16 +11,20 @@ function toggle_opacity_pane(data:any, pane:FolderApi){
 			index: index
 		})
 
+		opacity_pane.controller_.view.valueElement.classList.add('opacity_status')
+
 		opacity_pane.on('change', function(){
 			try{
 				 const opacity_func = new Function(
 					 'x',
 					 `return (${data.mesh.userData.opacity.func})`
 				 )
-
-				 data.mesh.userData.opacity.callback = opacity_func
+				 
+				opacity_pane.controller_.view.valueElement.style.boxShadow = ''
+				data.mesh.userData.opacity.callback = opacity_func
 			}catch(error){
 				data.$emit('log', data.id, error)
+				opacity_pane.controller_.view.valueElement.style.boxShadow = '0px 0px 10px 2px rgb(255 0 0 / 30%)'
 			}
 		})
 
@@ -60,16 +64,20 @@ function toggle_color_pane(data:any, pane:FolderApi){
 			index: index
 		})
 
+		color_pane.controller_.view.valueElement.classList.add('color_status')
+
 		color_pane.on('change', function(){
 			try{
 				 const color_func = new Function(
 					 'r','g','b',
 					 `return (${data.mesh.userData.color.func})`
 				 )
-
+				 
+				color_pane.controller_.view.valueElement.style.boxShadow = ''
 				 data.mesh.userData.color.callback = color_func
 			}catch(error){
 				data.$emit('log', data.id, error)
+				color_pane.controller_.view.valueElement.style.boxShadow = '0px 0px 10px 2px rgb(255 0 0 / 30%)'
 			}
 		})
 
@@ -119,16 +127,19 @@ function toggle_displacementScale_pane(data:any, pane:FolderApi){
 			index: index
 		})
 
+		displacementScale_pane.controller_.view.valueElement.classList.add('dscale_status')
 		displacementScale_pane.on('change', function(){
 			try{
 				 const displacementScale_func = new Function(
 					 'x',
 					 `return (${data.mesh.userData.displacementScale.func})`
 				 )
-
-				 data.mesh.userData.displacementScale.callback = displacementScale_func
+				 
+				displacementScale_pane.controller_.view.valueElement.style.boxShadow = ''
+				data.mesh.userData.displacementScale.callback = displacementScale_func
 			}catch(error){
 				data.$emit('log', data.id, error)
+				displacementScale_pane.controller_.view.valueElement.style.boxShadow = '0px 0px 10px 2px rgb(255 0 0 / 30%)'
 			}
 		})
 
@@ -167,6 +178,7 @@ function toggle_displacementBias_pane(data:any, pane:FolderApi){
 			index: index
 		})
 
+		displacementBias_pane.controller_.view.valueElement.classList.add('dbias_status')
 		displacementBias_pane.on('change', function(){
 			try{
 				 const displacementBias_func = new Function(
@@ -174,9 +186,11 @@ function toggle_displacementBias_pane(data:any, pane:FolderApi){
 					 `return (${data.mesh.userData.displacementBias.func})`
 				 )
 
+				 displacementBias_pane.controller_.view.valueElement.style.boxShadow = ''
 				 data.mesh.userData.displacementBias.callback = displacementBias_func
 			}catch(error){
 				data.$emit('log', data.id, error)
+				displacementBias_pane.controller_.view.valueElement.style.boxShadow = '0px 0px 10px 2px rgb(255 0 0 / 30%)'
 			}
 		})
 
