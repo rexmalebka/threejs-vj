@@ -20,6 +20,9 @@ Menu
 - **interface**: Interfaces menu, that holds options to interface with audio, midi and live streaming
 - **infos**: todo: instructions
 
+Models 
+---
+it's possible to import a 3D model created using another 3D software, supporting only obj, gltf, glb (Draco compressed) and fbx
 
 one line script Options
 ---
@@ -73,6 +76,14 @@ after selecting midi device,  you can use channels object to manipulate source/t
 | ch1.on       | if noteOn or noteOff                                                       |
 | ch1.note     | note value sent                                                            |
 
+Socket.io Interface
+---
+it's possible to connect to a socket.io server to manipulate scripts
+| value    | description                                                                                                            |
+|----------|------------------------------------------------------------------------------------------------------------------------|
+| on[name] | retrieve the value catched by socket io listener,  where name it's  event name could be undefined or any valid object  |
+
+
 live option
 ---
 
@@ -98,12 +109,7 @@ Buid:
 
 To-Do:
 ---
-- improve UI, make it less giant
-- improve three js performance
-- implement autosave and export/import
-- implement Web midi messages
-- implement Webcam support
-- improv script eval
+Moved to projects 
 
 
 references:
