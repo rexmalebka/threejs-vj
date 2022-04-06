@@ -38,11 +38,10 @@ export default defineComponent({
 					{title: 'sources'},
 					{title: 'textures'},
 					{title: 'monitor'},
-					{title: 'info'},
 				]
 			})
 			this.add_sources_tab(menu_tabs.pages[0])
-			this.add_info_tab(menu_tabs.pages[3])
+			//this.add_info_tab(menu_tabs.pages[3])
 		},
 		add_sources_tab(page:TabPageApi){
 			const app = this

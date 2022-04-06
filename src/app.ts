@@ -10,13 +10,19 @@ import init_scene from './scene'
 import {WebMidi} from "webmidi";
 import Peer from 'peerjs'
 
-import source_component from './source2'
+import source_component from './source'
 import texture_component from './texture'
 
 import { Pane } from 'tweakpane'
 import * as EssentialsPlugin from '@tweakpane/plugin-essentials';
 import * as TweakpaneRotationInputPlugin from '@0b5vr/tweakpane-plugin-rotation'
 import type {TabApi, TabPageApi} from 'tweakpane'
+
+import { io, Socket } from "socket.io-client";
+import { m } from './global_vars'
+
+import add_raycasting_pane from './rcasting'
+import load_model from './models'
 
 const url = new URL(location.href)
 
@@ -46,14 +52,14 @@ interface audio{
 	context: AudioContext
 	analyser: AnalyserNode
 	mediaSource?: MediaStreamAudioSourceNode
-	data: Uint8Array
+	amp_data: Uint8Array
+	fft_data: Uint8Array
 	connect: (stream:MediaStream)=> void
 }
 
-
 declare global {
 	interface Window{
-		t:number
+		on: Function
 		ch1: chan
 		ch2: chan
 		ch3: chan
@@ -70,11 +76,13 @@ declare global {
 		ch14: chan
 		ch15: chan
 		ch16: chan
+		t: number | null
 		a: audio
+		m: m
+		THREE: typeof THREE
 	}
 }
 
-window.t = 0
 window.ch1 = new chan()
 window.ch2 = new chan()
 window.ch3 = new chan()
@@ -91,15 +99,61 @@ window.ch13 = new chan()
 window.ch14 = new chan()
 window.ch15 = new chan()
 window.ch16 = new chan()
+window.t = 0
+window.m  = m
+window.THREE = THREE
 
 const context = new AudioContext()
 const analyser = context.createAnalyser()
 analyser.fftSize = 2048;
 
+const fft_data:  Uint8Array & {[Symbol.toPrimitive]? : Function} =  Object.assign(
+	new Uint8Array(analyser.frequencyBinCount),{
+		[Symbol.toPrimitive]: function(hint:string){
+			const data = fft_data
+			return data.reduce((a,b)=> a+b) / data.length
+		}
+	}
+)
+const amp_data:  Uint8Array & {[Symbol.toPrimitive]? : Function} =  Object.assign(
+	new Uint8Array(analyser.frequencyBinCount),{
+		[Symbol.toPrimitive]: function(hint:string){
+			const data = amp_data
+			return data.reduce((a,b)=> a+b) / data.length
+		}
+	}
+)
+
+
+
+interface ServerToClientEvents {
+	noArg: () => void;
+	basicEmit: (a: number, b: string, c: Buffer) => void;
+	withAck: (d: string, callback: (e: number) => void) => void;
+}
+
+interface ClientToServerEvents {
+	hello: () => void;
+}
+
+let socket_listener:any = {}
+
+
+
+window.on = new Proxy(function(){}, {
+	get:  function(target, name){
+		return socket_listener[name]
+	},
+	apply: function(target, thisArg, name){
+		return socket_listener[name[0]]
+	},
+})
+
 const target:audio = {
 	context: context,
 	analyser: analyser,
-	data:  new Uint8Array(analyser.frequencyBinCount),
+	fft_data:  fft_data,
+	amp_data:  amp_data,
 	connect: function(stream:MediaStream ){
 		if(this.mediaSource){ this.mediaSource.disconnect() }
 
@@ -108,30 +162,39 @@ const target:audio = {
 		mediaSource.connect(analyser)
 		context.resume()
 		console.debug(" connect audio ", this)
-	}
+	},
 }
 
 window.a = new Proxy(target, {
 	get: function(target, name){
 		if(name == "connect"){
 			return target.connect
+		}else if(name== Symbol.toPrimitive){
+			target.analyser.getByteFrequencyData(target.fft_data)
+			return function(hint:string){
+				return +target.fft_data
+			}
 		}else if(!isNaN(Number(name))){
-			if(target.mediaSource && target.data){
-				target.analyser.getByteFrequencyData(target.data)
-				return target.data[Number(name)]
+			if(target.mediaSource){
+				target.analyser.getByteFrequencyData(target.fft_data)
+				return target.fft_data[Number(name)]
 			}else{
 				return 0
 			}
-		}else if(name == "data"){
-			target.analyser.getByteFrequencyData(target.data)
-			return target.data		
+		}else if(name == "fft"){
+			target.analyser.getByteFrequencyData(target.fft_data)
+			return target.fft_data
+		}else if(name == "amp"){
+			target.analyser.getByteTimeDomainData(target.amp_data)
+			return target.amp_data
 		}
-	}
+	},
 })
 
 
+
 export default createApp({
-	emits:['add_texture', 'rename_texture', 'rename_source'],
+	emits:['add_texture', 'rename_texture', 'rename_source', 'send_socket'],
 	data(){
 		const scene:THREE.Scene = new THREE.Scene()
 
@@ -171,7 +234,7 @@ export default createApp({
 
 		const controls: OrbitControls = new OrbitControls(camera, renderer.domElement)
 
-		// camera initial pos
+		// CAmera initial pos
 		camera.position.set(0, 0, 5)
 
 
@@ -194,8 +257,8 @@ export default createApp({
 		function animate(){
 			//renderer.render(scene, camera)
 			composer.render()
-			requestAnimationFrame(animate)
 			window.t = clock.getElapsedTime()
+			requestAnimationFrame(animate)
 		}
 		requestAnimationFrame(animate)
 
@@ -220,6 +283,10 @@ export default createApp({
 
 		const url = new URL(location.href)
 
+
+
+		let socket: null|Socket<ServerToClientEvents, ClientToServerEvents> = null
+
 		return {
 			name: url.searchParams.get('sketch'),
 			scene: scene, 
@@ -234,6 +301,8 @@ export default createApp({
 			textures:{},
 			active_texture: '',
 
+			models: {},
+
 			pane: pane,
 
 			clock:clock,
@@ -241,6 +310,9 @@ export default createApp({
 			midi_input: -1,
 			peer_id: '',
 			audio_device: '',
+
+			socket_url: '',
+			socket: socket,
 
 			logs: "",
 
@@ -318,23 +390,80 @@ export default createApp({
 				}).then( (stream) =>{
 					window.a.connect(stream)
 				})
-				
+
 
 			}
 
 		},
+		'socket_url': function(new_url, old){
+			if(this.socket ==  null){
+				this.socket = io(new_url, {
+					query: {
+						sketch: this.name
+					}
+				})
+
+			}else{
+				this.socket.removeAllListeners();
+				this.socket.disconnect()
+
+				this.socket = io(new_url)
+			}		
+
+			this.socket.on('connect_error', function(){
+				console.debug("socket io connect error");
+				(document.querySelector('.socket_status') as HTMLElement).style.boxShadow = '0px 0px 10px 2px rgb(255 0 0 / 30%)'
+			})
+
+			this.socket.on('disconnect', function(){
+				console.debug("socket io disconnected");
+				(document.querySelector('.socket_status') as HTMLElement).style.boxShadow = '0px 0px 10px 2px rgb(255 255 0 / 30%)'
+			})
+
+			this.socket.on('connect', function(){
+				console.debug("socket io connected");
+				(document.querySelector('.socket_status') as HTMLElement).style.boxShadow = '0px 0px 10px 2px rgb(0 255 0 / 30%)'
+			})
+
+			this.socket.on('threevjs', function(data:any){
+				//  crear borrar editar
+
+
+				console.debug("data", data)	
+			})
+
+			this.socket.onAny(function(name:string, value:any){
+				socket_listener[name] = value					
+			})
+
+
+		},
 	},
 	methods:{
+		export_file(event:any){
+			const text:string = JSON.stringify(localStorage)
+
+			const a = document.createElement("a")
+			a.setAttribute('href', 'data:text/json;charset=utf-8,' + encodeURIComponent(text));
+			a.setAttribute('download', `${this.name}.json`);
+
+			a.style.display = "none"
+			document.body.appendChild(a)
+
+			a.click()
+			document.body.removeChild(a)
+
+		},
 		add_texture(id:string, texture:THREE.Texture){
-			if(this.textures[id]) this.textures[id].texture = texture
+			if(this.textures[id]) { this.textures[id].texture = texture }
 		},
 	rename_texture(id:string, name:string){
-		if(this.textures[id]) this.textures[id].name = name
-			this.gen_textures_menu(this.pane.children[0].pages[2])		
+		if(this.textures[id]){ this.textures[id].name = name }
+		this.gen_textures_menu(this.pane.children[0].pages[2])		
 	},
 	rename_source(id:string, name:string){
-		if(this.sources[id]) this.sources[id] = name
-			this.gen_sources_menu(this.pane.children[0].pages[1])		
+		if(this.sources[id]) { this.sources[id] = name }
+		this.gen_sources_menu(this.pane.children[0].pages[1])		
 	},
 	add_textures_tab(page: TabPageApi){
 		const app = this
@@ -361,6 +490,11 @@ export default createApp({
 		})
 		page.addSeparator()
 		page.addFolder({title:'', hidden: true})
+	},
+	send_socket(event:string, data:any){
+		if(this.socket.connected){
+			this.socket.emit(event, data)
+		}
 	},
 	gen_textures_menu(page: TabPageApi){
 		if(page.children[0]) page.children[0].dispose()
@@ -392,14 +526,26 @@ export default createApp({
 			app.active_source = name
 			app.gen_sources_menu(page)
 		})
-
+		page.addButton({title: 'import model'}).on('click',function(){
+			load_model().then(function(obj:any){
+				const name = `source-model-${Math.random().toString(16).substr(2,10)}`
+				app.models[name] = obj
+				app.sources[name] = name
+				app.active_source = name
+				app.gen_sources_menu(page)
+			
+			}).catch( (err:ErrorEvent)=>{
+				console.debug("error",err)			
+			})
+			//gen_model_menu(app, page)
+		})
 		page.addButton({title: 'delete'}).on('click',function(){
 			const name = app.active_source
 			delete app.sources[name]
 
 			app.active_source = Object.keys(app.sources)[0]  ? Object.keys(app.sources)[0] :  ''
 
-			if(app.active_source == '')  page.children[4].hidden = true
+			if(app.active_source == '')  page.children[5].hidden = true
 
 				app.gen_sources_menu(page)
 		})
@@ -548,8 +694,7 @@ export default createApp({
 									credential:"somepassword" 
 								}        
 							],
-						},
-						//debug:3
+						},debug:3
 					})
 					app.peer_id = id
 
@@ -572,7 +717,7 @@ export default createApp({
 			}
 
 		})
-		
+
 		navigator.mediaDevices.enumerateDevices().then(function(devices){
 			const audio = page.addFolder({title: 'Audio'})
 
@@ -596,6 +741,18 @@ export default createApp({
 		})
 
 		//audio.add
+		const Sockets = page.addFolder({title: 'Socket.io'})
+		const url_obj = {url: this.socket_url}
+
+		const socket_input = Sockets.addInput(url_obj, 'url', {label: 'url'}).on('change', function(){
+			app.socket_url = url_obj.url
+		})
+
+		socket_input.controller_.view.valueElement.classList.add('socket_status')
+
+		// ray castng
+		const ray_casting = page.addFolder({title: 'Ray Casting'})
+		add_raycasting_pane(this, ray_casting)
 
 	},
 	create_pane(){
@@ -605,7 +762,7 @@ export default createApp({
 				{title: 'sources'},
 				{title: 'textures'},
 				{title: 'interface'},
-				{title: 'infos'},
+				//{title: 'infos'},
 			]
 		})
 
@@ -616,6 +773,36 @@ export default createApp({
 	},
 	log(from:string, text:string){
 		this.logs += `\n[${from}]: '${text}'`
+	},
+	import_file(event:DragEvent){
+		console.debug("event", event)
+
+		if(event.dataTransfer == null) { return }
+
+		if(event.dataTransfer.files[0]){
+			const file = event.dataTransfer.files[0]
+
+			console.debug("fi le", file)
+			if(!file.name.endsWith("json")) { return }
+			const reader = new FileReader()
+
+			reader.onloadend = function(evt) {
+				console.debug("result", reader.result)
+				try{
+					const content = JSON.parse(reader.result as string)
+					for(let key in content){
+						localStorage.setItem(key, content[key])
+					}
+
+					location.search = `sketch=${file.name.replace(/\.[^/.]+$/, "")}`
+
+				}catch(err){
+					return
+				}
+			}
+			reader.readAsText(file)
+		}
+		event.preventDefault()
 	},
 	import(){
 		try{
@@ -730,6 +917,16 @@ export default createApp({
 			data = this.toJSON()
 		}
 
+	},
+	update_move_m(e:MouseEvent){
+		window.m.x = e.clientX
+		window.m.y = e.clientY
+	},
+	update_down_m(e:MouseEvent){
+		window.m.down = true
+	},
+	update_up_m(e:MouseEvent){
+		window.m.down = false
 	}
 	},
 	mounted(){
@@ -750,4 +947,3 @@ export default createApp({
 .component('texture_component', texture_component)
 .component('source_component', source_component)
 .mount("#app")
-//.component('source_component', source_component)
