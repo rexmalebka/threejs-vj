@@ -15,9 +15,6 @@
 			@keydown.shift.s="export_file"
 			@drop="import_file" @dragenter.prevent @dragover.prevent
 
-			@mousemove = "update_move_m"
-			@mousedown = "update_down_m"
-			@mouseup = "update_up_m"
 			tabindex="0"
 		>
 		<div v-if="!is_live">
