@@ -8,7 +8,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import init_scene from './scene'
 
 import {WebMidi} from "webmidi";
-import Peer from 'peerjs'
+//import Peer from 'peerjs'
 
 import source_component from './source'
 import texture_component from './texture'
@@ -19,7 +19,9 @@ import * as TweakpaneRotationInputPlugin from '@0b5vr/tweakpane-plugin-rotation'
 import type {TabApi, TabPageApi} from 'tweakpane'
 
 import { io, Socket } from "socket.io-client";
-import { m } from './global_vars'
+import { init_globals} from './global_vars'
+
+import { add_interfaces_tab,midi_listener } from './interfaces'
 
 import add_raycasting_pane from './rcasting'
 import load_model from './models'
@@ -28,25 +30,8 @@ const url = new URL(location.href)
 
 if(!url.searchParams.get('sketch')) location.search = `sketch=sketch-${Math.random().toString(16).substr(2,10)}`
 
-interface chan{
-	raw: number
-	value: number
-	note: number
-	on: boolean
-}
+init_globals()
 
-class chan implements chan{
-	constructor(){
-		this.raw = 0.0
-		this.value = 0.0
-		this.on = false
-		this.note = 0
-	}
-
-	[Symbol.toPrimitive](hint:string){
-		return this.raw
-	}
-}
 
 interface audio{
 	context: AudioContext
@@ -59,49 +44,14 @@ interface audio{
 
 declare global {
 	interface Window{
-		on: Function
-		ch1: chan
-		ch2: chan
-		ch3: chan
-		ch4: chan
-		ch5: chan
-		ch6: chan
-		ch7: chan
-		ch8: chan
-		ch9: chan
-		ch10: chan
-		ch11: chan
-		ch12: chan
-		ch13: chan
-		ch14: chan
-		ch15: chan
-		ch16: chan
-		t: number | null
 		a: audio
-		m: m
 		THREE: typeof THREE
 	}
 }
 
-window.ch1 = new chan()
-window.ch2 = new chan()
-window.ch3 = new chan()
-window.ch4 = new chan()
-window.ch5 = new chan()
-window.ch6 = new chan()
-window.ch7 = new chan()
-window.ch8 = new chan()
-window.ch9 = new chan()
-window.ch10 = new chan()
-window.ch11 = new chan()
-window.ch12 = new chan()
-window.ch13 = new chan()
-window.ch14 = new chan()
-window.ch15 = new chan()
-window.ch16 = new chan()
-window.t = 0
-window.m  = m
+
 window.THREE = THREE
+
 
 const context = new AudioContext()
 const analyser = context.createAnalyser()
@@ -135,19 +85,6 @@ interface ServerToClientEvents {
 interface ClientToServerEvents {
 	hello: () => void;
 }
-
-let socket_listener:any = {}
-
-
-
-window.on = new Proxy(function(){}, {
-	get:  function(target, name){
-		return socket_listener[name]
-	},
-	apply: function(target, thisArg, name){
-		return socket_listener[name[0]]
-	},
-})
 
 const target:audio = {
 	context: context,
@@ -251,13 +188,10 @@ export default createApp({
 			composer.setPixelRatio( window.devicePixelRatio );
 		})
 
-		const clock = new THREE.Clock()
-		clock.start()
 
 		function animate(){
 			//renderer.render(scene, camera)
 			composer.render()
-			window.t = clock.getElapsedTime()
 			requestAnimationFrame(animate)
 		}
 		requestAnimationFrame(animate)
@@ -305,7 +239,6 @@ export default createApp({
 
 			pane: pane,
 
-			clock:clock,
 
 			midi_input: -1,
 			peer_id: '',
@@ -332,52 +265,7 @@ export default createApp({
 			},
 			deep:true
 		},
-		'midi_input': function(new_midi, old){
-			console.debug("old new", old, new_midi)					
-			if(old != -1){
-				for(let i=1; i<WebMidi.inputs[old].channels.length; i++){
-					WebMidi.inputs[old].channels[i].removeListener()
-				}
-			}
-			if(new_midi != -1){
-				const listener = function(event:any){
-					console.debug("noteOn ", event)
-					const channel:number = event.message.channel
-					const raw:number = Number(event.rawValue)
-					const value:number = Number(event.value)
-					const note:number = event.note.number;
-
-					let ch;
-					if(channel == 1) { ch = window.ch1 }
-					if(channel == 2) { ch = window.ch2 }
-					if(channel == 3) { ch = window.ch3 }
-					if(channel == 4) { ch = window.ch4 }
-					if(channel == 5) { ch = window.ch5 }
-					if(channel == 6) { ch = window.ch6 }
-					if(channel == 7) { ch = window.ch7 }
-					if(channel == 8) { ch = window.ch8 }
-					if(channel == 9) { ch = window.ch9 }
-					if(channel == 10) { ch = window.ch10 }
-					if(channel == 11) { ch = window.ch11 }
-					if(channel == 12) { ch = window.ch12 }
-					if(channel == 13) { ch = window.ch13 }
-					if(channel == 14) { ch = window.ch14 }
-					if(channel == 15) { ch = window.ch15 }
-					if(channel == 16) { ch = window.ch16 }
-
-					if(ch != undefined){
-						ch.value = value
-						ch.raw = raw
-						ch.note = note
-						ch.on = event.type == 'noteon' ? true : false
-					}
-
-				}
-
-				WebMidi.inputs[new_midi].addListener('noteon', listener)
-				WebMidi.inputs[new_midi].addListener('noteoff', listener)
-			}
-		},
+		'midi_input': midi_listener,
 		'audio_device': function(new_dev, old){
 			if(new_dev != 'none'){
 
@@ -433,7 +321,7 @@ export default createApp({
 			})
 
 			this.socket.onAny(function(name:string, value:any){
-				socket_listener[name] = value					
+				window.on [name] = value					
 			})
 
 
@@ -648,7 +536,9 @@ export default createApp({
 		console.debug("connection made with: ",conn, conn.peer)
 		peer.call(conn.peer, this.mediaStream)
 	},
+		/*
 	add_interfaces_tab(page:TabPageApi){
+
 		const app = this
 		function midi_folder(){
 			if(WebMidi.inputs.length >= 1){
@@ -755,6 +645,7 @@ export default createApp({
 		add_raycasting_pane(this, ray_casting)
 
 	},
+	       */
 	create_pane(){
 		const menu_tabs = this.pane.addTab({
 			pages:[
@@ -769,7 +660,7 @@ export default createApp({
 		this.add_scene_tab(menu_tabs.pages[0])
 		this.add_sources_tab(menu_tabs.pages[1])
 		this.add_textures_tab(menu_tabs.pages[2])
-		this.add_interfaces_tab(menu_tabs.pages[3])
+		add_interfaces_tab(this, menu_tabs.pages[3])
 	},
 	log(from:string, text:string){
 		this.logs += `\n[${from}]: '${text}'`
@@ -918,16 +809,6 @@ export default createApp({
 		}
 
 	},
-	update_move_m(e:MouseEvent){
-		window.m.x = e.clientX
-		window.m.y = e.clientY
-	},
-	update_down_m(e:MouseEvent){
-		window.m.down = true
-	},
-	update_up_m(e:MouseEvent){
-		window.m.down = false
-	}
 	},
 	mounted(){
 		console.debug("app",this)

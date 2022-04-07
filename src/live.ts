@@ -19,7 +19,9 @@ export default createApp({
 			console.debug("call received")
 			call.on('stream', function(stream:any){
 				console.debug("sream ", stream);
-				(document.querySelector('#live') as HTMLVideoElement).srcObject = stream
+				(document.querySelector('#live') as HTMLVideoElement).srcObject = stream;
+				(document.querySelector('#live') as HTMLVideoElement).width = stream.getVideoTracks()[0].getSettings().width;
+				(document.querySelector('#live') as HTMLVideoElement).height = stream.getVideoTracks()[0].getSettings().height
 			})
 			call.answer()
 		},	
